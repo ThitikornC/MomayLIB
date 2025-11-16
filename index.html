@@ -49,10 +49,14 @@
   <div class="unit"></div>
 </div>
 </div>
-  
-<div class="Main_Container">
+  <!--maincon1 -->
+  <!-- Swipeable Page View wrapper -->
+  <div class="page-view">
+    <div class="page-track">
+      <div class="page active">
+        <div class="Main_Container">
   <div class="Containerglow"></div>
-  <div id="Total_Bar_Label">Electricity Usage</div>
+  <div id="Total_Bar_Label">Aircondition  Usage</div>
   <div id="Total_Bar">
     <canvas id="totalDonutCanvas"></canvas>
     <div id="Total_Bar_Text">0%</div>
@@ -85,7 +89,33 @@
    <div id="info_icon">
     <img src="./images/info.png" alt="info">
   </div>
-</div>
+        </div>
+      </div>
+      <!-- page 2 -->
+      <div class="page">
+        <div class="Main_Container2">
+          <div class="Containerglow"></div>
+          <div id="Total_Bar_Label2">IRA Usage</div>
+          <div id="Total_Bar2">
+            <canvas id="totalDonutCanvas2"></canvas>
+            <div id="Total_Bar_Text2">0%</div>
+          </div>
+
+          <div class="Meter2">
+            <h1>100 A</h1>
+            <h1>3 Phase</h1>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- pagination dots -->
+    <div class="page-dots" aria-hidden="true">
+      <button class="dot active" data-index="0"></button>
+      <button class="dot" data-index="1"></button>
+    </div>
+  </div>
+
+<!-- Info Popup -->
 <div id="maincon_info"> 
   <div id="Bar_info">
   <span id="Bar_number">3</span>
@@ -336,6 +366,7 @@ if ('serviceWorker' in navigator) {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+<script src="pageview.js" defer></script>
 <script src="script.js?v=2.36" defer></script>
 
 

@@ -155,8 +155,7 @@ body::after {
 }
 
 
-/* ================= Main Container ================= */
-.Main_Container {
+.Main_Container, .Main_Container2 {
   width: 375px;
   height: 289px;
   font-size: 12px;
@@ -3403,4 +3402,175 @@ color: #000000;
     padding-left: 8px;
     padding-right: 8px;
   }
+}
+
+/* Make the existing HTML `class="Containerglow"` work like the original glow */
+.Containerglow,
+#Containerglow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  border-radius: 15px;
+  background: radial-gradient(
+    circle,
+    rgba(245, 173, 4, 0.881) 0%,
+    rgba(0,255,0,0) 80%
+  );
+  filter: blur(40px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.Main_Container2, .Containerglow {
+  transition: all 0.5s ease;
+}
+
+/* Total bar variants for the second container */
+#Total_Bar_Label2 {
+  position: absolute;
+  top: 40px;
+  left: 32%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  font-weight: 700;
+  color: #2c1810;
+  text-align: center;
+  white-space: nowrap;
+  z-index: 1;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+#Total_Bar2 {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-left: -130px;
+  margin-top: 30px;
+
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 30%, 
+    #fff,
+    #fff 45%, 
+    #fff 55%, 
+    #fff 100%
+  );
+  border: 4px solid #74640a;
+
+  box-shadow:
+    inset 0 0 8px rgba(0,0,0,0.15),
+    1px 1px 0 #000,
+    -12px 4px #3b3305,
+}
+
+#Total_Bar2 canvas {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50%;
+  background: transparent;
+}
+
+#Total_Bar_Text2 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  font-weight: 700;
+  color: #2c1810;
+  text-align: center;
+  pointer-events: none;
+}
+
+.Meter2 {
+  position: absolute;
+  right: 18px;
+  top: 60px;
+  width: 80px;
+  height: auto;
+  padding: 10px;
+
+  background: linear-gradient(
+    180deg,
+    #f8f6f0 0%,
+    #fffef8 45%,
+    #fff8e8 55%,
+    #f5f0e5 100%
+  );
+
+  border-radius: 10px;      
+  border: 6px solid #74640a; 
+  box-shadow: 0 0 20px rgba(255, 230, 160, 0.55);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  transform: translateZ(0);
+  transition: all 0.3s ease;
+}
+
+.Meter2 h1 {
+  font-size: 14px;
+  margin: 0;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3), 0 -1px 0 rgba(0, 0, 0, 0.1);
+  color: #000000;
+  text-align: center;
+}
+
+/* ========== PageView (swipe cards) ========== */
+.page-view {
+  width: 375px;
+  max-width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  overflow: visible; /* allow shadows to show */
+  margin-bottom: 10px;
+}
+.page-track {
+  position: relative;
+  width: 100%;
+  touch-action: pan-y;
+}
+.page {
+  width: 100%;
+  display: none; /* hidden by default; JS will show active page */
+  justify-content: center;
+  align-items: center;
+}
+.page.active {
+  display: flex;
+}
+/* ensure container boxes don't shrink on small screens */
+.page .Main_Container,
+.page .Main_Container2 {
+  margin: 0 auto;
+}
+
+.page-dots {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+.page-dots .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.15);
+  padding: 0;
+}
+.page-dots .dot.active {
+  background: #2c1810;
 }
