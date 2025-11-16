@@ -3556,7 +3556,7 @@ color: #000000;
 
 .page-dots {
   position: absolute;
-  bottom: -8px;
+  bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -3574,9 +3574,6 @@ color: #000000;
 .page-dots .dot.active {
   background: #2c1810;
 }
-
-/* hide pagination symbols (swipe-only UI) */
-.page-dots { display: none !important; }
 
 /* Desktop navigation buttons */
 .page-nav-desktop {
