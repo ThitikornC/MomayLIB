@@ -3574,3 +3574,30 @@ color: #000000;
 .page-dots .dot.active {
   background: #2c1810;
 }
+
+/* hide pagination symbols (swipe-only UI) */
+.page-dots { display: none !important; }
+
+/* Desktop navigation buttons */
+.page-nav-desktop {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.nav-btn{
+  background: linear-gradient(180deg,#fffef8,#f5f0e5);
+  border: 6px solid #74640a;
+  border-radius: 8px;
+  color: #2c1810;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+  box-shadow: 1px 1px 0 #000, -6px 4px #3b3305;
+}
+.nav-btn:active{ transform: scale(0.98); }
+
+/* hide nav buttons on small screens (mobile) */
+@media (max-width:768px){
+  .page-nav-desktop{ display:none !important; }
+}
