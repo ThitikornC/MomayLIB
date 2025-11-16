@@ -6,6 +6,13 @@
   10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
   20%, 40%, 60%, 80% { transform: rotate(10deg); }
 }
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
 body {
   font-family: 'Roboto', serif;
   display: flex;
@@ -53,9 +60,9 @@ body::after {
   flex-direction: row;     /* จัดแนวนอน */
   justify-content: center; /* กึ่งกลางแนวนอน */
   gap: 20px;               /* ระยะห่างระหว่างกล่อง */
-  min-width: 400px;  /* ป้องกัน container ย่อ */
-  max-width: 300px;
-  margin-bottom: 10px;
+  width: 100%;
+  max-width: 420px; /* limit overall top container width to avoid pushing right */
+  margin: 0 auto 10px;
 }
 
 /* ================= กล่อง Client และ Electrical ================= */
