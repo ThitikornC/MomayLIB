@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       cache._powerFetching = true;
 
       // Fetch latest in background (stale-while-revalidate)
-      fetch('https://api-kx4r63rdjq-an.a.run.app/daily-energy/px_pm3250?date=' + localDate)
+      fetch('https://api-kx4r63rdjq-an.a.run.app/sensor/px_dh?date=' + localDate)
         .then(res => res.json())
         .then(json => {
           const data = json.data || [];
@@ -347,7 +347,7 @@ async function fetchDailyData(date){
         // Refresh in background
         (async () => {
           try {
-            const res = await fetch(`https://api-kx4r63rdjq-an.a.run.app/daily-energy/px_pm3250?date=${dateStr}`);
+            const res = await fetch(`https://api-kx4r63rdjq-an.a.run.app/sensor/px_dh?date=${dateStr}`);
             const json = await res.json();
             const data = json.data ?? [];
             dailyDataCache[dateStr] = data;
@@ -363,7 +363,7 @@ async function fetchDailyData(date){
 
   // Fallback to network (and persist)
   try {
-    const res = await fetch(`https://api-kx4r63rdjq-an.a.run.app/daily-energy/px_pm3250?date=${dateStr}`);
+    const res = await fetch(`https://api-kx4r63rdjq-an.a.run.app/sensor/px_dh?date=${dateStr}`);
     const json = await res.json();
     const data = json.data ?? [];
     dailyDataCache[dateStr] = data; // เก็บ cache
@@ -1546,7 +1546,7 @@ if ('Notification' in window && Notification.permission === 'default') {
     if (!res.ok) throw new Error("Network response was not ok");
     const json = await res.json();
 
-    const energyRes = await fetch(`https://api-kx4r63rdjq-an.a.run.app/daily-energy/px_pm3250?date=${apiDate}`);
+    const energyRes = await fetch(`https://api-kx4r63rdjq-an.a.run.app/sensor/px_dh?date=${apiDate}`);
     const energyJson = await energyRes.json();
     const energyData = energyJson.data || [];
 
