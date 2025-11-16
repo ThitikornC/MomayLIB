@@ -6,13 +6,6 @@
   10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
   20%, 40%, 60%, 80% { transform: rotate(10deg); }
 }
-html, body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-*, *::before, *::after { box-sizing: border-box; }
-
 body {
   font-family: 'Roboto', serif;
   display: flex;
@@ -60,9 +53,9 @@ body::after {
   flex-direction: row;     /* จัดแนวนอน */
   justify-content: center; /* กึ่งกลางแนวนอน */
   gap: 20px;               /* ระยะห่างระหว่างกล่อง */
-  width: 100%;
-  max-width: 420px; /* limit overall top container width to avoid pushing right */
-  margin: 0 auto 10px;
+  min-width: 400px;  /* ป้องกัน container ย่อ */
+  max-width: 300px;
+  margin-bottom: 10px;
 }
 
 /* ================= กล่อง Client และ Electrical ================= */
@@ -3437,21 +3430,17 @@ color: #000000;
 
 /* Total bar variants for the second container */
 #Total_Bar_Label2 {
-  display: inline-block;
-  padding: 8px 16px;
-  margin-top: -34px;
-  border: 4px solid #74640a;
-  border-radius: 8px;
-  background: linear-gradient(
-    180deg,
-    #f8f6f0 0%,
-    #fffef8 50%,
-    #fff8e8 100%
-  );
-  color: #74640a;
-  font-weight: bold;
+  position: absolute;
+  top: 40px;
+  left: 32%;
+  transform: translateX(-50%);
   font-size: 14px;
+  font-weight: 700;
+  color: #2c1810;
   text-align: center;
+  white-space: nowrap;
+  z-index: 1;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
 }
 
 #Total_Bar2 {
