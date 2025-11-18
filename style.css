@@ -98,7 +98,8 @@ body::after {
   justify-content: flex-start;
   align-items: flex-start;
   padding: 15px; 
-  margin-left: 2px;
+  /* shift entire client box further left */
+  margin-left: -8px;
 
   /* Animation / Transition */
   position: relative;
@@ -3269,7 +3270,8 @@ color: #000000;
     width: 160px;
   height: 85px;
   font-size: 12px;
-  margin-left: 2px;
+  /* shift further left */
+  margin-left: -8px;
 }
 
 .ElectricalBill_Container {
@@ -3563,22 +3565,36 @@ color: #000000;
 .page-dots {
   position: absolute;
   bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  transform: none;
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px;
   z-index: 20;
+  pointer-events: auto;
 }
 .page-dots .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  /* compact arrow style */
+  min-width: 30px;
+  height: 28px;
+  border-radius: 4px;
   border: none;
-  background: rgba(0,0,0,0.15);
-  padding: 0;
+  background: rgba(255,255,255,0.95);
+  color: #2c1810;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  cursor: pointer;
 }
-.page-dots .dot.active {
-  background: #2c1810;
+.page-dots .dot[disabled] {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* Desktop navigation buttons */
@@ -3604,3 +3620,30 @@ color: #000000;
 @media (max-width:768px){
   .page-nav-desktop{ display:none !important; }
 }
+
+/* PIN overlay styles */
+#pinOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+#pinOverlay[aria-hidden="true"] { display: none; }
+.pin-box {
+  background: #fffef8;
+  border-radius: 12px;
+  padding: 20px;
+  width: 320px;
+  max-width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  border: 4px solid #74640a;
+}
+.pin-box h2 { margin: 0 0 12px 0; font-size: 18px; color: #2c1810; }
+.pin-box input[type="password"]{ width: 80%; padding: 10px; font-size: 18px; text-align: center; border-radius:6px; border:1px solid #ccc }
+.pin-actions{ margin-top: 12px }
+.pin-actions button{ background:#74640a; color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer }
+.pin-actions button:active{ transform: translateY(1px) }

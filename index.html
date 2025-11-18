@@ -21,6 +21,17 @@
 
 <body>
   
+<!-- PIN overlay: requires a 4-digit PIN to access the app -->
+<div id="pinOverlay" aria-hidden="false">
+  <div class="pin-box">
+    <h2>Enter PIN</h2>
+    <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="****" />
+    <div class="pin-actions">
+      <button id="pinSubmit">Enter</button>
+    </div>
+    <p id="pinError" class="error" style="display:none;color:#f88;margin-top:8px;">Incorrect PIN</p>
+  </div>
+</div>
 <!---->
 <div id="Date_icon">
   <div class="marquee">
@@ -122,10 +133,10 @@
         </div>
       </div>
     </div>
-    <!-- pagination dots -->
+    <!-- pagination arrows -->
     <div class="page-dots" aria-hidden="true">
-      <button class="dot active" data-index="0"></button>
-      <button class="dot" data-index="1"></button>
+      <button class="dot prev" aria-label="Previous page">&lt;</button>
+      <button class="dot next" aria-label="Next page">&gt;</button>
     </div>
   </div>
 
