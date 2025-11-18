@@ -19,9 +19,12 @@
   #Date_icon,
   .Main_Container,
   .Main_Container2 {
-    transform: scale(2);
+    /* Use zoom where supported to emulate a true browser zoom (×2).
+       This scales layout like a zoom rather than using CSS transform. */
+    zoom: 2;
+    -moz-transform-origin: 0 0; /* fallback for firefox if needed */
     transform-origin: 0 0;
-    width: 50% !important;
+    /* Width adjustments aren't necessary when using zoom; remove width override. */
   }
 
   /* Ensure the donut canvases keep sizing after scale */
@@ -31,6 +34,9 @@
   }
 
   /* Keep popups, overlays and modals unaffected and on top */
+  /* Keep popups, overlays and modals unaffected and on top.
+     Set zoom:1 to avoid inheriting zoom from scaled elements (zoom does not inherit, but
+     setting explicitly ensures the popups render normally). */
   #overlay,
   #maincon_info,
   #notificationPopup,
@@ -39,6 +45,7 @@
   #calendarPopup,
   #reportActionModal,
   #reportWrapper {
+    zoom: 1 !important;
     transform: none !important;
     position: fixed !important;
     z-index: 9999 !important;
