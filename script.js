@@ -52,6 +52,33 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
   updateDate();
 
+  // ================= Scaling only for exact 1080x1920 =================
+  (function applyScalingForExactScreen() {
+    try {
+      console.log('applyScalingForExactScreen running');
+      const params = new URLSearchParams(window.location.search);
+      const force = params.get('scale') === '2';
+
+      function isExact1080x1920() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        console.log('Window size:', w, 'x', h);
+        return w === 1080 && h === 1920;
+      }
+
+      const shouldScale = force || isExact1080x1920();
+      console.log('Should scale:', shouldScale);
+
+      if (shouldScale) {
+        document.body.style.transform = 'scale(2)';
+        document.body.style.transformOrigin = 'top left';
+        console.log('Applied scale(2) to body');
+      } else {
+        console.log('Not scaling');
+      }
+    } catch (e) { console.warn('applyScalingForExactScreen error', e); }
+  })();
+
   // Temporarily bypass PIN overlay during development/tests
   try { sessionStorage.setItem('momay_unlocked', '1'); } catch (e) { /* ignore */ }
 
