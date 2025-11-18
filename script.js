@@ -52,6 +52,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
   updateDate();
 
+  // Temporarily bypass PIN overlay during development/tests
+  try { sessionStorage.setItem('momay_unlocked', '1'); } catch (e) { /* ignore */ }
+
   // ================= PIN / Access Gate =================
   // Simple PIN overlay to gate access. PIN is '1608'.
   try {
