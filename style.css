@@ -561,7 +561,7 @@ font-size: 14px;
 
 #Main_Picinfo {
   position: absolute;
-  top: 40px;           /* ปรับตำแหน่งบน */
+  top: 46px;           /* ปรับตำแหน่งบน (moved down 6px total) */
   left: 50px;          /* ปรับตำแหน่งซ้าย */
   display: flex;
   justify-content: flex-start;
@@ -3293,7 +3293,7 @@ color: #000000;
 }
 #Main_Picinfo {
   position: absolute;
-  top: 40px;           /* ปรับตำแหน่งบน */
+  top: 46px;           /* ปรับตำแหน่งบน (moved down 6px total) */
   left: 20px;          /* ปรับตำแหน่งซ้าย */
   display: flex;
   justify-content: flex-start;
