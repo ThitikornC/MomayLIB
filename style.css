@@ -6,6 +6,50 @@
   10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
   20%, 40%, 60%, 80% { transform: rotate(10deg); }
 }
+
+/* Large desktop: 1920x1080 and up — scale main UI ×2 but keep popups unchanged */
+@media (min-width: 1920px) and (min-height: 1080px) {
+  /* Target the main visible containers only (popups are separate elements later in DOM)
+     Set width to 50% so scale(2) results in an effective 100% layout */
+  .Top_Container,
+  .page-view,
+  .Floor_Container,
+  .Realtime_Container,
+  .Bottom_info,
+  #Date_icon,
+  .Main_Container,
+  .Main_Container2 {
+    transform: scale(2);
+    transform-origin: 0 0;
+    width: 50% !important;
+  }
+
+  /* Ensure the donut canvases keep sizing after scale */
+  #Total_Bar, #Total_Bar2, #Total_Bar canvas, #Total_Bar2 canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Keep popups, overlays and modals unaffected and on top */
+  #overlay,
+  #maincon_info,
+  #notificationPopup,
+  #kwangPopup,
+  #dailyPopup,
+  #calendarPopup,
+  #reportActionModal,
+  #reportWrapper {
+    transform: none !important;
+    position: fixed !important;
+    z-index: 9999 !important;
+    left: 0; top: 0; /* allow each popup's own positioning to apply */
+  }
+
+  /* Small tweak: increase space under header when scaled */
+  body {
+    min-height: 200vh; /* allow extra space for the scaled content if needed */
+  }
+}
 body {
   font-family: 'Roboto', serif;
   display: flex;
