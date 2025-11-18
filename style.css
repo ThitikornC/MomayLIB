@@ -7,8 +7,8 @@
   20%, 40%, 60%, 80% { transform: rotate(10deg); }
 }
 
-/* Large desktop: 1920x1080 and up — scale main UI ×2 but keep popups unchanged */
-@media (min-width: 1920px) and (min-height: 1080px) {
+/* Large portrait mobile/tablet: 1080x1920 (portrait) and up — scale main UI ×2 but keep popups unchanged */
+@media (orientation: portrait) and (min-width: 1080px) and (min-height: 1920px) {
   /* Target the main visible containers only (popups are separate elements later in DOM)
      Set width to 50% so scale(2) results in an effective 100% layout */
   .Top_Container,
