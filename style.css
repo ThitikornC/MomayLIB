@@ -740,7 +740,7 @@ font-size: 14px;
   justify-content: center;
   align-items: center;
   margin-left: -130px;
-  margin-top: 30px;
+  margin-top: 40px;
 
   /* ขอบนอก + gradient */
   border-radius: 50%;
@@ -3099,7 +3099,8 @@ color: #000000;
   justify-content: center;
   align-items: center;
   margin-left: -120px;
-  margin-bottom: 10px;}
+  margin-bottom: 10px;
+  margin-top: 40px;}
   /* Container ปฏิทิน */
   #calendar {
     width: 100%;      /* เต็มความกว้างหน้าจอ */
@@ -3224,6 +3225,7 @@ color: #000000;
   justify-content: center;
   align-items: center;
   margin-left: -8px; /* ยกเลิกค่าติดลบ */
+  margin-top: 40px;
 }
 .Top_Container,
 .Main_Container {
@@ -3232,6 +3234,14 @@ color: #000000;
   box-sizing: border-box;
   padding-left: 0px;
   padding-right: 0px;
+}
+
+/* Move install date and client number slightly left to align with ClientName */
+.Top_Container .ClientName_Container .Date_install,
+.Top_Container .ClientName_Container .ClientNo {
+  transform: translateX(-2.5%); /* adjusted: move right 2% (previously 5%) */
+  /* fallback for older rules that set 'right' - make right shift certain */
+  margin-left: -2.5%;
 }
 
 .ClientName {
@@ -3359,6 +3369,16 @@ color: #000000;
   .Bottom_info {
     width: 95%; /* reduce width to 90% of viewport/container */
 }
+
+/* Very small screens: reduce ClientName by 2px (requested) */
+@media (max-width: 370px) {
+  /* Ensure ClientName matches Date_install and ClientNo on very small screens */
+  .Top_Container .ClientName,
+  .ClientName_Container .ClientName {
+    font-size: 10px !important; /* match .Date_install / .ClientNo */
+    line-height: 1.1;
+  }
+}
   .Realtime_Container {
     width: 95%;
     max-width: 360px; /* ให้สัมพันธ์กับ viewport */
@@ -3412,6 +3432,21 @@ color: #000000;
   }
 }
 
+/* Mid-size phones: screens > 370px and < 768px (exclude tablets/desktops)
+   Move the total donut further down for better spacing on these viewports */
+@media (min-width: 371px) and (max-width: 767px) {
+  #Total_Bar,
+  #Total_Bar2 {
+    margin-top: 60px; /* increase vertical offset for mid-size screens */
+  }
+  /* if there are smaller variants used in other breakpoints, ensure canvas sizing remains consistent */
+  #Total_Bar canvas,
+  #Total_Bar2 canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
 /* Make the existing HTML `class="Containerglow"` work like the original glow */
 .Containerglow,
 #Containerglow {
@@ -3459,7 +3494,7 @@ color: #000000;
   justify-content: center;
   align-items: center;
   margin-left: -130px;
-  margin-top: 30px;
+  margin-top: 40px;
 
   border-radius: 50%;
   background: radial-gradient(
@@ -3571,7 +3606,7 @@ color: #000000;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 28px; /* inset arrows further from left/right edges */
   z-index: 20;
   pointer-events: auto;
 }
