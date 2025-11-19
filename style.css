@@ -3668,24 +3668,4 @@ color: #000000;
 .pin-actions button{ background:#74640a; color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer }
 .pin-actions button:active{ transform: translateY(1px) }
 
-/* ===================================================================
-   Scaling only for exact 1080x1920 screens: scale the entire page (body)
-   by 2x using transform:scale(2).
-   =================================================================== */
-@media (width:1080px) and (height:1920px) {
-  body {
-    transform: scale(2);
-    transform-origin: top left;
-  }
-}
-
-/* ===================================================================
-   Scaling only for exact 1080x1920 screens: scale the main UI (#app)
-   by 2x to make it larger without affecting other parts.
-   =================================================================== */
-@media (width: 1080px) and (height: 1920px) {
-  #app {
-    transform: scale(2);
-    transform-origin: top left;
-  }
-}
+/
