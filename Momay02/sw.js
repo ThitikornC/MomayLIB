@@ -1,12 +1,10 @@
 // ================= Cache / Offline =================
-const CACHE_NAME = 'momay-cache-vB2';
-const API_CACHE_NAME = 'momay-api-cache-v1';
-const API_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_NAME = 'momay-cache-vB1.15';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/style.css?v=2.41',
-  '/script.js?v=2.41',
+  '/style.css?v=1.16',
+  '/script.js?v=1.16',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
@@ -24,125 +22,54 @@ self.addEventListener('install', event => {
 
 // ---------------- Activate ----------------
 self.addEventListener('activate', event => {
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
-    // Enable navigation preload for faster navigations
-    if (self.registration && self.registration.navigationPreload) {
-      try { await self.registration.navigationPreload.enable(); } catch (e) { /* ignore */ }
-    }
-    await self.clients.claim();
-    // Cleanup old API cache entries based on TTL
-    try {
-      const apiCache = await caches.open(API_CACHE_NAME);
-      const requests = await apiCache.keys();
-      const now = Date.now();
-      await Promise.all(requests.map(async req => {
-        try {
-          const url = req.url;
-          // Skip meta entries
-          if (url.endsWith('::meta')) return;
-          const metaReq = new Request(url + '::meta');
-          const metaResp = await apiCache.match(metaReq);
-          if (!metaResp) return;
-          const meta = await metaResp.json().catch(() => null);
-          if (!meta || !meta.ts) return;
-          if (now - meta.ts > API_TTL) {
-            await apiCache.delete(req);
-            await apiCache.delete(metaReq);
-          }
-        } catch (e) { /* ignore per-entry errors */ }
-      }));
-    } catch (e) { /* ignore cleanup errors */ }
-  })());
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
+  );
 });
 
 // ---------------- Fetch ----------------
-const API_PATHS = ['/daily-energy', '/solar-size', '/daily-bill', '/calendar'];
+const API_PATHS = ['/daily-energy', '/solar-size', '/daily-bill'];
 self.addEventListener('fetch', event => {
-  try {
-    const requestUrl = new URL(event.request.url);
+  const requestUrl = new URL(event.request.url);
 
-    if (event.request.method !== 'GET' || !['http:', 'https:'].includes(requestUrl.protocol)) return;
+  if (event.request.method !== 'GET' || !['http:', 'https:'].includes(requestUrl.protocol)) return;
 
-    // Fast navigation handling: cache-first with background update
-    if (event.request.mode === 'navigate') {
-      event.respondWith(
-        caches.match('/index.html')
-          .then(cachedResp => {
-            const fetchPromise = fetch(event.request)
-              .then(networkResp => {
-                if (networkResp && networkResp.ok) {
-                  caches.open(CACHE_NAME).then(cache => {
-                    cache.put('/index.html', networkResp.clone()).catch(() => {});
-                  }).catch(() => {});
-                }
-                return networkResp;
-              })
-              .catch(() => cachedResp);
-            
-            return cachedResp || fetchPromise;
-          })
-          .catch(() => fetch(event.request))
-      );
-      return;
-    }
-
-    // API requests: network-first with simple cache fallback
-    if (API_PATHS.some(path => requestUrl.pathname.includes(path))) {
-      event.respondWith(
-        fetch(event.request)
-          .then(networkResp => {
-            if (networkResp && networkResp.ok) {
-              try {
-                const ct = networkResp.headers.get('content-type') || '';
-                if (ct.includes('application/json')) {
-                  caches.open(API_CACHE_NAME).then(cache => {
-                    cache.put(event.request, networkResp.clone()).catch(() => {});
-                  }).catch(() => {});
-                }
-              } catch (e) { /* ignore */ }
-            }
-            return networkResp;
-          })
-          .catch(() => {
-            return caches.match(event.request)
-              .then(cached => cached || new Response(JSON.stringify({ error: 'offline' }), { 
-                headers: { 'Content-Type': 'application/json' } 
-              }))
-              .catch(() => new Response(JSON.stringify({ error: 'offline' }), { 
-                headers: { 'Content-Type': 'application/json' } 
-              }));
-          })
-      );
-      return;
-    }
-
-    // Static files: cache-first
+  if (API_PATHS.some(path => requestUrl.pathname.includes(path))) {
+    // Network-first สำหรับ API
     event.respondWith(
-      caches.match(event.request)
-        .then(cached => {
-          if (cached) return cached;
-          
-          return fetch(event.request)
-            .then(networkResp => {
-              if (networkResp && networkResp.ok) {
-                try {
-                  caches.open(CACHE_NAME).then(cache => {
-                    cache.put(event.request, networkResp.clone()).catch(() => {});
-                  }).catch(() => {});
-                } catch (e) { /* ignore */ }
-              }
-              return networkResp;
-            })
-            .catch(() => new Response('', { status: 504 }));
-        })
-        .catch(() => fetch(event.request).catch(() => new Response('', { status: 504 })))
+      fetch(event.request)
+        .then(resp => resp.ok ? resp : caches.match(event.request))
+        .catch(() => caches.match(event.request) ||
+          new Response(JSON.stringify({ error: 'offline' }), { headers: { 'Content-Type': 'application/json' } })
+        )
     );
-  } catch (err) {
-    // Ultimate fallback if anything goes wrong
-    console.error('SW fetch error:', err);
+    return;
   }
+
+  // Cache-first สำหรับ static files
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request)
+        .then(networkResp => {
+          if (networkResp && networkResp.ok) {
+            caches.open(CACHE_NAME)
+              .then(cache => cache.put(event.request, networkResp.clone()))
+              .catch(err => console.warn('❌ Cache put failed:', err));
+          }
+          return networkResp;
+        })
+        .catch(err => {
+          console.warn('❌ Fetch failed:', err);
+          if (event.request.mode === 'navigate') return caches.match('/index.html');
+          return new Response('', { status: 504, statusText: 'offline' });
+        })
+    })
+  );
 });
 
 // ================= Push Notification =================
