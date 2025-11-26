@@ -399,19 +399,23 @@ document.addEventListener('DOMContentLoaded', async function() {
         const json = await res.json();
         console.debug('[fetchDailyBill] response', json);
 
-        // Support two possible shapes: number or object
-        let billValue = 0;
-        if (typeof json === 'number') billValue = json;
-        else if (json && typeof json.electricity_bill === 'number') billValue = json.electricity_bill;
-        else if (json && typeof json.electricity_bill === 'string') billValue = parseFloat(json.electricity_bill) || 0;
-
-        // If response looks empty, fallback to SAMPLE for that date
-        if (!billValue && dateStr === SAMPLE_DAILY_BILL.date) {
-          console.debug('[fetchDailyBill] using SAMPLE_DAILY_BILL fallback for', dateStr);
-          billValue = SAMPLE_DAILY_BILL.electricity_bill;
+        // Expect object with total_energy_kwh, electricity_bill
+        let billObj = {};
+        if (json && typeof json === 'object' && ('total_energy_kwh' in json || 'electricity_bill' in json)) {
+          billObj = json;
+        } else if (typeof json === 'number') {
+          billObj = { electricity_bill: json };
+        } else if (json && typeof json.electricity_bill === 'string') {
+          billObj = { electricity_bill: parseFloat(json.electricity_bill) || 0 };
         }
 
-        cache.dailyBill = billValue;
+        // If response looks empty, fallback to SAMPLE for that date
+        if ((!billObj.electricity_bill || !billObj.total_energy_kwh) && dateStr === SAMPLE_DAILY_BILL.date) {
+          console.debug('[fetchDailyBill] using SAMPLE_DAILY_BILL fallback for', dateStr);
+          billObj = SAMPLE_DAILY_BILL;
+        }
+
+        cache.dailyBill = billObj;
         cache.lastFetch['dailyBill'] = Date.now();
         renderDailyBill(cache.dailyBill);
       } catch (err) {
@@ -419,12 +423,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         // network failed or remote errored — use fallback sample when date matches, otherwise try sample anyway
         try {
           if (dateStr === SAMPLE_DAILY_BILL.date) {
-            cache.dailyBill = SAMPLE_DAILY_BILL.electricity_bill;
+            cache.dailyBill = SAMPLE_DAILY_BILL;
             cache.lastFetch['dailyBill'] = Date.now();
             renderDailyBill(cache.dailyBill);
           } else {
             // as a last resort, use the sample to keep UI populated for testing
-            cache.dailyBill = SAMPLE_DAILY_BILL.electricity_bill;
+            cache.dailyBill = SAMPLE_DAILY_BILL;
             cache.lastFetch['dailyBill'] = Date.now();
             renderDailyBill(cache.dailyBill);
           }
@@ -443,9 +447,14 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   function renderDailyBill(bill) {
-    const units = bill / pricePerUnit;
-    if (dailyBillEl) dailyBillEl.textContent = Number(bill).toFixed(2) + ' THB';
-    if (unitEl) unitEl.textContent = Number(units).toFixed(2) + ' Unit';
+    // bill: object ที่มี total_energy_kwh, electricity_bill
+    if (!bill || typeof bill !== 'object') {
+      if (dailyBillEl) dailyBillEl.textContent = '';
+      if (unitEl) unitEl.textContent = '';
+      return;
+    }
+    if (dailyBillEl) dailyBillEl.textContent = (bill.electricity_bill !== undefined ? Number(bill.electricity_bill).toFixed(2) : '-') + ' THB';
+    if (unitEl) unitEl.textContent = (bill.total_energy_kwh !== undefined ? Number(bill.total_energy_kwh).toFixed(2) : '-') + ' Unit';
   }
 
   // Expose helper for manual testing from browser console: e.g. `fetchDailyBill('2025-11-18')`
