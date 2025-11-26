@@ -1363,7 +1363,7 @@ function renderNotifications() {
     ;
 
     const ts = formatTime(n.timestamp);
-    const iconMap = { peak:'⚡', daily_diff:'📊', daily_bill:'💰', test:'🧪' };
+    const iconMap = { peak:'⚡', daily_diff:'📊', daily_bill:'💰', test:'⚡' };
     const icon = iconMap[n.type] || '🔔';
 
     card.innerHTML = `
