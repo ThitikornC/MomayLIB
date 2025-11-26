@@ -52,85 +52,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
   updateDate();
 
-  // ================= Scaling only for exact 1080x1920 =================
-  (function applyScalingForExactScreen() {
-    try {
-      console.log('applyScalingForExactScreen running');
-      const params = new URLSearchParams(window.location.search);
-      const force = params.get('scale') === '2';
-
-      function isExact1080x1920() {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        console.log('Window size:', w, 'x', h);
-        return w === 1080 && h === 1920;
-      }
-
-      const shouldScale = force || isExact1080x1920();
-      console.log('Should scale:', shouldScale);
-
-      if (shouldScale) {
-        document.body.style.transform = 'scale(2)';
-        document.body.style.transformOrigin = 'top left';
-        console.log('Applied scale(2) to body');
-      } else {
-        console.log('Not scaling');
-      }
-    } catch (e) { console.warn('applyScalingForExactScreen error', e); }
-  })();
-
-  // Temporarily bypass PIN overlay during development/tests
-  try { sessionStorage.setItem('momay_unlocked', '1'); } catch (e) { /* ignore */ }
-
-  // ================= PIN / Access Gate =================
-  // Simple PIN overlay to gate access. PIN is '1608'.
-  try {
-    const pinOverlay = document.getElementById('pinOverlay');
-    const pinInput = document.getElementById('pinInput');
-    const pinSubmit = document.getElementById('pinSubmit');
-    const pinError = document.getElementById('pinError');
-    const PIN_CODE = '1608';
-
-    function hidePinOverlay() {
-      if (!pinOverlay) return;
-      pinOverlay.setAttribute('aria-hidden', 'true');
-      try { sessionStorage.setItem('momay_unlocked', '1'); } catch (e) {}
-    }
-
-    function showPinOverlay() {
-      if (!pinOverlay) return;
-      pinOverlay.setAttribute('aria-hidden', 'false');
-      if (pinInput) pinInput.focus();
-    }
-
-    // If already unlocked in this session, keep hidden
-    try {
-      if (sessionStorage.getItem('momay_unlocked') === '1') {
-        if (pinOverlay) pinOverlay.setAttribute('aria-hidden', 'true');
-      } else {
-        showPinOverlay();
-      }
-    } catch (e) {
-      // ignore storage errors and show overlay
-      showPinOverlay();
-    }
-
-    if (pinSubmit) pinSubmit.addEventListener('click', () => {
-      const v = pinInput ? (pinInput.value || '') : '';
-      if (v === PIN_CODE) {
-        hidePinOverlay();
-      } else {
-        if (pinError) pinError.style.display = 'block';
-        if (pinInput) pinInput.value = '';
-        if (pinInput) pinInput.focus();
-      }
-    });
-
-    if (pinInput) pinInput.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') { pinSubmit && pinSubmit.click(); }
-    });
-  } catch (e) { /* non-fatal */ }
-
   // ================= Constants =================
   const V = 400;
   const root3 = Math.sqrt(3);
@@ -152,9 +73,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     dailyBill: 10000, // 10 วินาที
     weather: 300000 // 5 นาที
   };
-
-  // API base URL (declare early so functions can use it immediately)
-  const API_BASE = 'https://momaybackendlib-production.up.railway.app';
 
   function isCacheValid(key, duration) {
     return cache.lastFetch[key] && (Date.now() - cache.lastFetch[key] < duration);
@@ -355,21 +273,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   const unitEl = document.querySelector('.unit');
   const pricePerUnit = 4.4;
 
-  // Fallback sample (provided) — used when network fetch fails or for testing
-  const SAMPLE_DAILY_BILL = {
-    date: "2025-11-18",
-    samples: 275,
-    total_energy_kwh: 106.5,
-    avg_power_kw: 21.82,
-    max_power_kw: 25.5,
-    min_power_kw: 0,
-    electricity_bill: 468.59,
-    rate_per_kwh: 4.4
-  };
-
-  // fetchDailyBill(optionalDate)
-  // optionalDate: can be a Date object or a YYYY-MM-DD string. If omitted, uses today.
-  async function fetchDailyBill(optionalDate) {
+  async function fetchDailyBill() {
     try {
       // Render cached bill immediately if available
       if (cache.dailyBill !== null && cache.dailyBill !== undefined) {
@@ -379,16 +283,8 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (cache._dailyBillFetching) return;
       cache._dailyBillFetching = true;
 
-      // prepare date string
-      let dateStr;
-      if (optionalDate) {
-        if (optionalDate instanceof Date) dateStr = optionalDate.toISOString().split('T')[0];
-        else dateStr = String(optionalDate);
-      } else {
-        dateStr = new Date().toISOString().split('T')[0];
-      }
-
-      const url = `${API_BASE}/daily-bill?date=${dateStr}`;
+      const today = new Date().toISOString().split('T')[0];
+      const url = `${API_BASE}/daily-bill?date=${today}`;
       try {
         console.debug('[fetchDailyBill] fetching', url);
         const res = await fetch(url);
@@ -398,39 +294,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         const json = await res.json();
         console.debug('[fetchDailyBill] response', json);
-
-        // Support two possible shapes: number or object
-        let billValue = 0;
-        if (typeof json === 'number') billValue = json;
-        else if (json && typeof json.electricity_bill === 'number') billValue = json.electricity_bill;
-        else if (json && typeof json.electricity_bill === 'string') billValue = parseFloat(json.electricity_bill) || 0;
-
-        // If response looks empty, fallback to SAMPLE for that date
-        if (!billValue && dateStr === SAMPLE_DAILY_BILL.date) {
-          console.debug('[fetchDailyBill] using SAMPLE_DAILY_BILL fallback for', dateStr);
-          billValue = SAMPLE_DAILY_BILL.electricity_bill;
-        }
-
-        cache.dailyBill = billValue;
+        cache.dailyBill = json.electricity_bill ?? 0;
         cache.lastFetch['dailyBill'] = Date.now();
         renderDailyBill(cache.dailyBill);
       } catch (err) {
         console.error('Error fetching daily bill (inner):', err);
-        // network failed or remote errored — use fallback sample when date matches, otherwise try sample anyway
-        try {
-          if (dateStr === SAMPLE_DAILY_BILL.date) {
-            cache.dailyBill = SAMPLE_DAILY_BILL.electricity_bill;
-            cache.lastFetch['dailyBill'] = Date.now();
-            renderDailyBill(cache.dailyBill);
-          } else {
-            // as a last resort, use the sample to keep UI populated for testing
-            cache.dailyBill = SAMPLE_DAILY_BILL.electricity_bill;
-            cache.lastFetch['dailyBill'] = Date.now();
-            renderDailyBill(cache.dailyBill);
-          }
-        } catch (e) {
-          console.error('Fallback render failed', e);
-        }
       } finally {
         cache._dailyBillFetching = false;
       }
@@ -444,16 +312,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   function renderDailyBill(bill) {
     const units = bill / pricePerUnit;
-    if (dailyBillEl) dailyBillEl.textContent = Number(bill).toFixed(2) + ' THB';
-    if (unitEl) unitEl.textContent = Number(units).toFixed(2) + ' Unit';
+    if (dailyBillEl) dailyBillEl.textContent = bill.toFixed(2) + ' THB';
+    if (unitEl) unitEl.textContent = units.toFixed(2) + ' Unit';
   }
 
-  // Expose helper for manual testing from browser console: e.g. `fetchDailyBill('2025-11-18')`
-  window.fetchDailyBill = fetchDailyBill;
-
-  // initial load and polling
   fetchDailyBill();
-  setInterval(() => fetchDailyBill(), 10000);
+  setInterval(fetchDailyBill, 10000);
 
  // ================= Chart.js (ไม่มี scrollbar + cache) =================
 let chartInitialized = false;
@@ -1228,6 +1092,7 @@ initializeChart();
   showDailyPopup();
 
 // ================= Notification System (Updated) =================
+const API_BASE = 'https://momaybackendlib-production.up.railway.app';
 const bellIcon = document.getElementById('Bell_icon');
 const bellBadge = document.getElementById('bellBadge');
 const notificationPopup = document.getElementById('notificationPopup');
