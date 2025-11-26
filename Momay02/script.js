@@ -1319,15 +1319,18 @@ function renderNotifications() {
   // Builder per type
   const buildDetails = (n) => {
     switch(n.type) {
-      case 'peak':
+      case 'peak': {
         // backend peak notifications may use `power` or `active_power_total`
         const peakVal = (n.active_power_total !== undefined && n.active_power_total !== null)
                           ? n.active_power_total
                           : (n.power !== undefined && n.power !== null ? n.power : null);
-        return peakVal !== null ? `
-          <div style="background:#fff3cd; padding:8px; border-radius:6px; margin-top:6px; font-size:12px;">
+        if (peakVal !== null) {
+          return `<div style="background:#fff3cd; padding:8px; border-radius:6px; margin-top:6px; font-size:12px;">
             <strong style="color:#856404;">Peak Power: ${Number(peakVal).toFixed(2)} kW</strong>
-          </div>` : '';
+          </div>`;
+        }
+        return '';
+      }
       case 'daily_diff':
         if (!n.diff) return '';
         const isIncrease = n.diff.electricity_bill < 0; // negative means yesterday cheaper?
