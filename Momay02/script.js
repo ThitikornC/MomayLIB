@@ -378,13 +378,14 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (cache._dailyBillFetching) return;
       cache._dailyBillFetching = true;
 
-      // prepare date string
+      // prepare date string using local date (YYYY-MM-DD) to avoid UTC shift
+      const toLocalDateStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       let dateStr;
       if (optionalDate) {
-        if (optionalDate instanceof Date) dateStr = optionalDate.toISOString().split('T')[0];
+        if (optionalDate instanceof Date) dateStr = toLocalDateStr(optionalDate);
         else dateStr = String(optionalDate);
       } else {
-        dateStr = new Date().toISOString().split('T')[0];
+        dateStr = toLocalDateStr(new Date());
       }
 
       const url = `${API_BASE}/daily-bill?date=${dateStr}`;
@@ -473,12 +474,13 @@ function formatDateDisplay(date){
 
 // ฟังก์ชัน fetch ข้อมูล
 async function fetchDailyData(date){
-  const dateStr = date.toISOString().split('T')[0];
-  
-  // ใช้ cache ถ้ามี
-  if (dailyDataCache[dateStr]) return dailyDataCache[dateStr];
+  // Use local-date as cache key (YYYY-MM-DD)
+  const localKey = (function(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; })(date);
 
-  const storageKey = `dailyData-${dateStr}`;
+  // ใช้ cache ถ้ามี
+  if (dailyDataCache[localKey]) return dailyDataCache[localKey];
+
+  const storageKey = `dailyData-${localKey}`;
   const STORAGE_TTL = 1000 * 60 * 15; // 15 minutes
 
   // Try localStorage first for immediate response
@@ -487,32 +489,67 @@ async function fetchDailyData(date){
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.ts && (Date.now() - parsed.ts < STORAGE_TTL)) {
-        dailyDataCache[dateStr] = parsed.data || [];
+        dailyDataCache[localKey] = parsed.data || [];
         // Refresh in background
         (async () => {
           try {
-            const res = await fetch(`${API_BASE}/daily-energy/pm_airlib?date=${dateStr}`);
-            const json = await res.json();
-            const data = json.data ?? [];
-            dailyDataCache[dateStr] = data;
-            try { localStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), data })); } catch (e) { /* ignore */ }
+            // background refresh: fetch the UTC dates that might contain data for this local date
+            const localMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const utcStart = new Date(localMidnight.getTime() - (localMidnight.getTimezoneOffset() * 60000));
+            const utcEnd = new Date(utcStart.getTime() + 24 * 3600 * 1000 - 1);
+            const startDateUTC = utcStart.toISOString().split('T')[0];
+            const endDateUTC = utcEnd.toISOString().split('T')[0];
+            const fetchDates = (startDateUTC === endDateUTC) ? [startDateUTC] : [startDateUTC, endDateUTC];
+            let combined = [];
+            for (const dstr of fetchDates) {
+              try {
+                const r = await fetch(`${API_BASE}/daily-energy/pm_airlib?date=${dstr}`);
+                const j = await r.json();
+                combined = combined.concat(j.data ?? []);
+              } catch(e) { /* ignore per-day failure */ }
+            }
+            // filter to utc window
+            const filtered = combined.filter(it => {
+              try { const ts = new Date(it.timestamp); return ts >= utcStart && ts <= utcEnd; } catch(e){ return false; }
+            });
+            dailyDataCache[localKey] = filtered;
+            try { localStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), data: filtered })); } catch (e) { /* ignore */ }
           } catch (e) { /* background refresh failed */ }
         })();
-        return dailyDataCache[dateStr];
+        return dailyDataCache[localKey];
       }
     }
   } catch (e) {
     console.warn('dailyData localStorage read failed', e);
   }
-
-  // Fallback to network (and persist)
+  // Fallback to network (fetch UTC days covering this local date and filter)
   try {
-    const res = await fetch(`${API_BASE}/daily-energy/pm_airlib?date=${dateStr}`);
-    const json = await res.json();
-    const data = json.data ?? [];
-    dailyDataCache[dateStr] = data; // เก็บ cache
-    try { localStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), data })); } catch (e) { /* ignore */ }
-    return data;
+    const localMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const utcStart = new Date(localMidnight.getTime() - (localMidnight.getTimezoneOffset() * 60000));
+    const utcEnd = new Date(utcStart.getTime() + 24 * 3600 * 1000 - 1);
+    const startDateUTC = utcStart.toISOString().split('T')[0];
+    const endDateUTC = utcEnd.toISOString().split('T')[0];
+    const fetchDates = (startDateUTC === endDateUTC) ? [startDateUTC] : [startDateUTC, endDateUTC];
+
+    let combined = [];
+    for (const dstr of fetchDates) {
+      try {
+        const res = await fetch(`${API_BASE}/daily-energy/pm_airlib?date=${dstr}`);
+        const json = await res.json();
+        combined = combined.concat(json.data ?? []);
+      } catch (e) {
+        console.error('Error fetching daily-energy for', dstr, e);
+      }
+    }
+
+    // filter to utc window
+    const filtered = combined.filter(it => {
+      try { const ts = new Date(it.timestamp); return ts >= utcStart && ts <= utcEnd; } catch(e){ return false; }
+    });
+
+    dailyDataCache[localKey] = filtered; // เก็บ cache keyed by local date
+    try { localStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), data: filtered })); } catch (e) { /* ignore */ }
+    return filtered;
   } catch(err){
     console.error(err);
     return [];
@@ -538,9 +575,10 @@ async function updateChartData(date){
   const chartData = new Array(1440).fill(null);
   values.forEach(item => {
     const t = new Date(item.timestamp);
+    // use UTC hours/minutes so data aligns with API timestamps (no local +7 shift)
     const idx = t.getUTCHours()*60 + t.getUTCMinutes();
     // prefer active_power_total / power_active then legacy power
-    chartData[idx] = item.active_power_total ?? item.power ?? item.power_active ?? null;
+    if (idx >= 0 && idx < chartData.length) chartData[idx] = item.active_power_total ?? item.power ?? item.power_active ?? null;
   });
 
   // คำนวณ Max / Avg
@@ -1761,8 +1799,9 @@ if ('Notification' in window && Notification.permission === 'default') {
       const chartData = new Array(1440).fill(null);
       energyData.forEach(item => {
         const t = new Date(item.timestamp);
+        // use UTC hours/minutes so report chart follows API timestamps (no local +7 shift)
         const idx = t.getUTCHours() * 60 + t.getUTCMinutes();
-        chartData[idx] = item.active_power_total ?? item.power ?? item.power_active ?? null;
+        if (idx >= 0 && idx < chartData.length) chartData[idx] = item.active_power_total ?? item.power ?? item.power_active ?? null;
       });
 
       let maxVal = null, maxIdx = null, sum = 0, count = 0;
