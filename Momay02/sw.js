@@ -10,8 +10,12 @@ const PRECACHE_URLS = [
   '/icons/icon-512.png'
 ];
 
+// Add debug logs to trace service worker lifecycle
+console.log('Service Worker Loaded');
+
 // ---------------- Install ----------------
 self.addEventListener('install', event => {
+  console.log('Service Worker Installed');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(PRECACHE_URLS))
@@ -22,6 +26,7 @@ self.addEventListener('install', event => {
 
 // ---------------- Activate ----------------
 self.addEventListener('activate', event => {
+  console.log('Service Worker Activated');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
@@ -34,6 +39,7 @@ self.addEventListener('activate', event => {
 // ---------------- Fetch ----------------
 const API_PATHS = ['/daily-energy', '/solar-size', '/daily-bill'];
 self.addEventListener('fetch', event => {
+  console.log('Service Worker Fetch Event:', event.request.url);
   const requestUrl = new URL(event.request.url);
 
   if (event.request.method !== 'GET' || !['http:', 'https:'].includes(requestUrl.protocol)) return;

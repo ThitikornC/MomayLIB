@@ -1,4 +1,3 @@
-
 // ---------------- Global error capture (collect runtime crashes) ----------------
 (function() {
   function saveErrorRecord(rec) {
@@ -283,7 +282,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         .then(res => res.json())
         .then(json => {
           const data = json.data || [];
-          const last = data.length ? data[data.length - 1] : null;
+
+          // Filter data for daytime hours (08:00 - 18:00)
+          const filteredData = data.filter(item => {
+            const time = new Date(item.timestamp).getHours();
+            return time >= 8 && time <= 18; // Only include data between 08:00 and 18:00
+          });
+
+          const last = filteredData.length ? filteredData[filteredData.length - 1] : null;
           const latest = last ? (last.active_power_total ?? last.power ?? last.power_active ?? 0) : 0;
           cache.powerData = latest;
           cache.lastFetch['active_power_total'] = Date.now();
@@ -399,23 +405,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         const json = await res.json();
         console.debug('[fetchDailyBill] response', json);
 
-        // Expect object with total_energy_kwh, electricity_bill
-        let billObj = {};
-        if (json && typeof json === 'object' && ('total_energy_kwh' in json || 'electricity_bill' in json)) {
-          billObj = json;
-        } else if (typeof json === 'number') {
-          billObj = { electricity_bill: json };
-        } else if (json && typeof json.electricity_bill === 'string') {
-          billObj = { electricity_bill: parseFloat(json.electricity_bill) || 0 };
-        }
+        // Support two possible shapes: number or object
+        let billValue = 0;
+        if (typeof json === 'number') billValue = json;
+        else if (json && typeof json.electricity_bill === 'number') billValue = json.electricity_bill;
+        else if (json && typeof json.electricity_bill === 'string') billValue = parseFloat(json.electricity_bill) || 0;
 
         // If response looks empty, fallback to SAMPLE for that date
-        if ((!billObj.electricity_bill || !billObj.total_energy_kwh) && dateStr === SAMPLE_DAILY_BILL.date) {
+        if (!billValue && dateStr === SAMPLE_DAILY_BILL.date) {
           console.debug('[fetchDailyBill] using SAMPLE_DAILY_BILL fallback for', dateStr);
-          billObj = SAMPLE_DAILY_BILL;
+          billValue = SAMPLE_DAILY_BILL.electricity_bill;
         }
 
-        cache.dailyBill = billObj;
+        cache.dailyBill = billValue;
         cache.lastFetch['dailyBill'] = Date.now();
         renderDailyBill(cache.dailyBill);
       } catch (err) {
@@ -423,12 +425,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         // network failed or remote errored — use fallback sample when date matches, otherwise try sample anyway
         try {
           if (dateStr === SAMPLE_DAILY_BILL.date) {
-            cache.dailyBill = SAMPLE_DAILY_BILL;
+            cache.dailyBill = SAMPLE_DAILY_BILL.electricity_bill;
             cache.lastFetch['dailyBill'] = Date.now();
             renderDailyBill(cache.dailyBill);
           } else {
             // as a last resort, use the sample to keep UI populated for testing
-            cache.dailyBill = SAMPLE_DAILY_BILL;
+            cache.dailyBill = SAMPLE_DAILY_BILL.electricity_bill;
             cache.lastFetch['dailyBill'] = Date.now();
             renderDailyBill(cache.dailyBill);
           }
@@ -447,14 +449,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   function renderDailyBill(bill) {
-    // bill: object ที่มี total_energy_kwh, electricity_bill
-    if (!bill || typeof bill !== 'object') {
-      if (dailyBillEl) dailyBillEl.textContent = '';
-      if (unitEl) unitEl.textContent = '';
-      return;
-    }
-    if (dailyBillEl) dailyBillEl.textContent = (bill.electricity_bill !== undefined ? Number(bill.electricity_bill).toFixed(2) : '-') + ' THB';
-    if (unitEl) unitEl.textContent = (bill.total_energy_kwh !== undefined ? Number(bill.total_energy_kwh).toFixed(2) : '-') + ' Unit';
+    const units = bill / pricePerUnit;
+    if (dailyBillEl) dailyBillEl.textContent = Number(bill).toFixed(2) + ' THB';
+    if (unitEl) unitEl.textContent = Number(units).toFixed(2) + ' Unit';
   }
 
   // Expose helper for manual testing from browser console: e.g. `fetchDailyBill('2025-11-18')`
@@ -1319,18 +1316,15 @@ function renderNotifications() {
   // Builder per type
   const buildDetails = (n) => {
     switch(n.type) {
-      case 'peak': {
+      case 'peak':
         // backend peak notifications may use `power` or `active_power_total`
         const peakVal = (n.active_power_total !== undefined && n.active_power_total !== null)
                           ? n.active_power_total
                           : (n.power !== undefined && n.power !== null ? n.power : null);
-        if (peakVal !== null) {
-          return `<div style="background:#fff3cd; padding:8px; border-radius:6px; margin-top:6px; font-size:12px;">
+        return peakVal !== null ? `
+          <div style="background:#fff3cd; padding:8px; border-radius:6px; margin-top:6px; font-size:12px;">
             <strong style="color:#856404;">Peak Power: ${Number(peakVal).toFixed(2)} kW</strong>
-          </div>`;
-        }
-        return '';
-      }
+          </div>` : '';
       case 'daily_diff':
         if (!n.diff) return '';
         const isIncrease = n.diff.electricity_bill < 0; // negative means yesterday cheaper?
@@ -1375,7 +1369,7 @@ function renderNotifications() {
     ;
 
     const ts = formatTime(n.timestamp);
-    const iconMap = { peak:'⚡', daily_diff:'📊', daily_bill:'💰', test:'⚡' };
+    const iconMap = { peak:'⚡', daily_diff:'📊', daily_bill:'💰', test:'🧪' };
     const icon = iconMap[n.type] || '🔔';
 
     card.innerHTML = `
@@ -1539,9 +1533,6 @@ if ('serviceWorker' in navigator) {
     loadNotifications();
   });
 }
-
-
-// เพิ่มใน frontend script (หลังจากส่วน bell icon shake)
 
 // ================= Shake Calendar & Kwang Icons =================
 
