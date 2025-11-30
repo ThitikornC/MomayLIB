@@ -282,14 +282,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         .then(res => res.json())
         .then(json => {
           const data = json.data || [];
-
-          // Filter data for daytime hours (08:00 - 18:00)
-          const filteredData = data.filter(item => {
-            const time = new Date(item.timestamp).getHours();
-            return time >= 8 && time <= 18; // Only include data between 08:00 and 18:00
-          });
-
-          const last = filteredData.length ? filteredData[filteredData.length - 1] : null;
+          const last = data.length ? data[data.length - 1] : null;
           const latest = last ? (last.active_power_total ?? last.power ?? last.power_active ?? 0) : 0;
           cache.powerData = latest;
           cache.lastFetch['active_power_total'] = Date.now();
@@ -1284,17 +1277,18 @@ function renderNotifications() {
     return;
   }
 
-  // Helper: format timestamp (local time)
-  const formatTime = iso => {
+  // Helper: format timestamp to date/time like '16 Nov 2025 07:00'
+  const formatDateTime = iso => {
     if (!iso) return '-';
+    // Use UTC getters so we display the timestamp exactly as the API provided (no local +7 shift)
     const d = new Date(iso);
-    const dd = String(d.getDate()).padStart(2,'0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
     const mmNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const mm = mmNames[d.getMonth()];
-    const yyyy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mi = String(d.getMinutes()).padStart(2,'0');
-    return `${dd} ${mm} ${yyyy} ${hh}:${mi}`;
+    const mm = mmNames[d.getUTCMonth()];
+    const yyyy = d.getUTCFullYear();
+    const hh = String(d.getUTCHours()).padStart(2,'0');
+    const min = String(d.getUTCMinutes()).padStart(2,'0');
+    return `${dd} ${mm} ${yyyy} ${hh}:${min}`;
   };
 
   // Clear
@@ -1310,80 +1304,69 @@ function renderNotifications() {
     box-shadow: inset 0 0 5px rgba(0,0,0,0.15),1px 1px 0 #000,-4px 3px #3b3305,0 0 12px rgba(255,230,160,0.55);
     font-weight:700; text-align:center; font-family:Roboto,sans-serif; color:#000; margin-bottom:6px;
   `;
-  header.innerHTML = '<strong style="font-size:16px; color:#000;">Notification</strong>';
+  header.innerHTML = '<strong style="font-size:16px; color:#000;">Notifications</strong>';
   notificationItems.appendChild(header);
 
-  // Builder per type
+  // Builder per type / parsed body
   const buildDetails = (n) => {
-    switch(n.type) {
-      case 'peak':
-        // backend peak notifications may use `power` or `active_power_total`
-        const peakVal = (n.active_power_total !== undefined && n.active_power_total !== null)
-                          ? n.active_power_total
-                          : (n.power !== undefined && n.power !== null ? n.power : null);
-        return peakVal !== null ? `
-          <div style="background:#fff3cd; padding:8px; border-radius:6px; margin-top:6px; font-size:12px;">
-            <strong style="color:#856404;">Peak Power: ${Number(peakVal).toFixed(2)} kW</strong>
-          </div>` : '';
-      case 'daily_diff':
-        if (!n.diff) return '';
-        const isIncrease = n.diff.electricity_bill < 0; // negative means yesterday cheaper?
-        const color = isIncrease ? '#d9534f' : '#5cb85c';
-        const arrow = isIncrease ? '↑' : '↓';
-        return `
-          <div style="background:#f0f0f0; padding:8px; border-radius:6px; margin-top:6px; font-size:11.5px; line-height:1.4;">
-            <div style="margin-bottom:4px;">
-              <span style="color:#666;">Yesterday:</span>
-              <strong>${n.yesterday?.energy_kwh !== undefined ? n.yesterday.energy_kwh.toFixed(2) : '-'} Unit</strong>
-            </div>
-            <div style="margin-bottom:4px;">
-              <span style="color:#666;">Day Before:</span>
-              <strong>${n.dayBefore?.energy_kwh !== undefined ? n.dayBefore.energy_kwh.toFixed(2) : '-'} Unit</strong>
-            </div>
-            <div style="color:${color}; font-weight:700;">${arrow} ${Math.abs(n.diff.electricity_bill).toFixed(2)} THB</div>
-          </div>`;
-      case 'daily_bill':
-        return `
-          <div style="background:#d4edda; padding:10px; border-radius:6px; margin-top:6px; font-size:12px;">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <div><span style="color:#666;">Date:</span><br><strong style="color:#155724;">${n.date || '-'}</strong></div>
-              <div><span style="color:#666;">Energy:</span><br><strong style="color:#155724;">${n.energy_kwh !== undefined ? n.energy_kwh.toFixed(2) : '-'} Unit</strong></div>
-            </div>
-            <div style="margin-top:6px; border-top:1px solid #c3e6cb; padding-top:6px;">
-              <span style="color:#666;">Bill:</span> <strong style="color:#155724; font-size:14px;">${n.electricity_bill !== undefined ? n.electricity_bill.toFixed(2) : '-'} THB</strong>
-            </div>
-            ${n.samples ? `<div style='color:#999; font-size:10px; margin-top:4px;'>${n.samples} samples • rate ${n.rate_per_kwh || 4.4} THB/kWh</div>` : ''}
-          </div>`;
-      case 'test':
-        return '';
-      default:
-        return '';
+    let parsed = {};
+    try { parsed = JSON.parse(n.body || '{}'); } catch(e) { parsed = {}; }
+
+    // If body contains a power value -> show Peak style
+    if (parsed.power !== undefined) {
+      const val = Number(parsed.power) || 0;
+      return `
+        <div style="margin-top:8px;">
+          <div style="font-size:12px; color:#666; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.6px;">Current peak power is ${val.toFixed(2)} kW</div>
+          <div style="background:#fff2cc; padding:12px; border-radius:8px; border:1px solid #f1dca3; box-shadow:inset 0 1px 0 rgba(255,255,255,0.6);">
+            <div style="font-weight:800; color:#7b4f00; font-size:18px;">Peak Power: ${val.toFixed(2)} kW</div>
+          </div>
+        </div>`;
     }
+
+    // Daily energy report style
+    if (parsed.energy_kwh !== undefined || parsed.electricity_bill !== undefined) {
+      const e = parsed.energy_kwh ? Number(parsed.energy_kwh).toFixed(2) : '0.00';
+      const bill = parsed.electricity_bill ? Number(parsed.electricity_bill).toFixed(2) : '0.00';
+      const date = parsed.date || '-';
+      return `
+        <div style="margin-top:8px;">
+          <div style="font-size:12px; color:#666; margin-bottom:6px;">Yesterday (${date}): <strong>${e} Unit</strong> = <strong>${bill} THB</strong></div>
+          <div style="background:#dff0d8; padding:12px; border-radius:8px; border:1px solid #c3e6cb; color:#155724; font-size:13px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div><div style="font-size:12px; color:#155724;">Date:</div><div style="font-weight:700">${date}</div></div>
+              <div><div style="font-size:12px; color:#155724;">Energy:</div><div style="font-weight:700">${e} Unit</div></div>
+            </div>
+            <div style="margin-top:8px; border-top:1px solid rgba(0,0,0,0.05); padding-top:8px;">Total Bill: <strong style="font-size:16px">${bill} THB</strong></div>
+          </div>
+        </div>`;
+    }
+
+    // fallback: no special details
+    return '';
   };
 
   notifications.forEach(n => {
     const card = document.createElement('div');
     card.className = 'notification-item';
     card.style.cssText = `
-      padding:14px 15px; margin:4px 0; background:${n.read ? '#fff' : '#f8f9ff'}; border:1px solid #e6e6e6; border-radius:8px; cursor:pointer; transition:background .15s;`
+      padding:14px 15px; margin:8px 0; background:${n.read ? '#fff' : '#f8f9ff'}; border:1px solid #e6e6e6; border-radius:12px; cursor:pointer; transition:background .15s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);`
     ;
 
-    const ts = formatTime(n.timestamp);
-    const iconMap = { peak:'⚡', daily_diff:'📊', daily_bill:'💰', test:'🧪' };
-    const icon = iconMap[n.type] || '🔔';
+    const ts = formatDateTime(n.timestamp);
 
+    // Title + subtitle layout (no medicine bottle image)
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span style="font-size:16px;">${icon}</span>
-          <strong style="font-size:13px; color:#2c1810;">${n.title || '(No title)'}</strong>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+        <div style="flex:1">
+          <div style="font-family: 'Georgia', serif; font-weight:700; color:#5a2b00; font-size:16px; margin-bottom:6px;">${n.title || '(No title)'}</div>
         </div>
-        ${n.read ? '' : '<span style="width:8px;height:8px;background:#667eea;border-radius:50%;display:inline-block;" title="Unread"></span>'}
+        ${n.read ? '' : '<span style="width:10px;height:10px;background:#667eea;border-radius:50%;display:inline-block;margin-top:4px;" title="Unread"></span>'}
       </div>
-      ${n.body ? `<p style='margin:6px 0 4px 0; font-size:12px; color:#555;'>${n.body}</p>` : ''}
+      <div style="font-size:12px; color:#8a7f77; margin-top:2px;">${n.subtitle || ''}</div>
       ${buildDetails(n)}
-      <div style="margin-top:6px; text-align:right;">
-        <small style="color:#999; font-size:10px;">${ts}</small>
+      <div style="margin-top:10px; text-align:right;">
+        <small style="color:#999; font-size:11px;">${ts}</small>
       </div>
     `;
 
@@ -1405,7 +1388,7 @@ function renderNotifications() {
 // แสดง error
 function renderError() {
   if (!notificationItems) return;
-  
+
   notificationItems.innerHTML = `
     <div style="text-align:center; padding:30px; color:#d9534f;">
       <p style="font-size:24px; margin-bottom:10px;">⚠️</p>
@@ -1427,11 +1410,8 @@ async function markAsRead(type, id) {
     });
     
     if (res.ok) {
-      // อัปเดต local state
       const notif = notifications.find(n => n._id === id);
       if (notif) notif.read = true;
-      
-      // Re-render
       await loadNotifications();
     }
   } catch (err) {
@@ -1534,6 +1514,9 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+
+// เพิ่มใน frontend script (หลังจากส่วน bell icon shake)
+
 // ================= Shake Calendar & Kwang Icons =================
 
 // ฟังก์ชันสั่น Calendar icon
@@ -1597,10 +1580,12 @@ function updateBadgeWithShake(count, latestType) {
 // อัปเดตฟังก์ชัน loadNotifications เพื่อส่ง type ล่าสุด
 async function loadNotifications() {
   try {
+    console.log('Fetching notifications from API: /api/notifications/all?limit=50');
     const res = await fetch(`${API_BASE}/api/notifications/all?limit=50`);
     const data = await res.json();
     
     if (data.success) {
+      console.log('Notifications fetched successfully:', data);
       notifications = data.data || [];
       
       // หา notification ล่าสุดที่ยังไม่อ่าน
@@ -1609,10 +1594,13 @@ async function loadNotifications() {
       
       updateBadgeWithShake(data.unreadCount || 0, latestType);
       renderNotifications();
+    } else {
+      console.error('Failed to fetch notifications:', data);
+      notifications = [];
+      renderError();
     }
-    
   } catch (err) {
-    console.error('Load notifications failed:', err);
+    console.error('Error while fetching notifications:', err);
     notifications = [];
     renderError();
   }
@@ -1780,8 +1768,8 @@ if ('Notification' in window && Notification.permission === 'default') {
             {
               label: 'Average',
               data: new Array(1440).fill(avgVal),
-              borderColor: '#000',
-              borderDash: [5, 5],
+                           borderColor: '#000',
+              borderDash: [5,  5],
               fill: false,
               pointRadius: 0,
               borderWidth: 1

@@ -140,3 +140,34 @@ function urlBase64ToUint8Array(base64String) {
   const rawData = atob(base64);
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
+
+// ---------------- Daily Peak Notification ----------------
+self.addEventListener('message', event => {
+  if (event.data) {
+    if (event.data.type === 'NEW_DAILY_PEAK') {
+      const { power } = event.data;
+
+      // Notification for New Daily Peak with rounded value
+      self.registration.showNotification('⚡ New Daily Peak!', {
+        body: `Peak Power: ${power.toFixed(2)} kW`,
+        icon: '/icons/peak-icon.png',
+        badge: '/icons/peak-badge.png',
+        vibrate: [300, 100, 300],
+        tag: 'daily-peak-notification',
+        renotify: true
+      });
+    } else if (event.data.type === 'DAILY_ENERGY_REPORT') {
+      const { date, energy_kwh, electricity_bill, rate_per_kwh } = event.data;
+
+      // Notification for Daily Energy Report with rounded values
+      self.registration.showNotification('💰 Daily Energy Report', {
+        body: `Date: ${date}\nEnergy: ${energy_kwh.toFixed(2)} kWh\nBill: ${electricity_bill.toFixed(2)} ฿\nRate: ${rate_per_kwh.toFixed(2)} ฿/kWh`,
+        icon: '/icons/energy-report-icon.png',
+        badge: '/icons/energy-report-badge.png',
+        vibrate: [200, 100, 200],
+        tag: 'daily-energy-report-notification',
+        renotify: true
+      });
+    }
+  }
+});
