@@ -840,10 +840,29 @@ initializeChart();
       const res = await fetch(url);
       const data = await res.json();
 
-      eventCache[key] = data.map(e => ({
-        ...e,
-        textColor: '#000'
-      }));
+      // Normalize events: parse body (if present) to extract bill and energy values
+      eventCache[key] = (data || []).map(e => {
+        let parsed = {};
+        try { parsed = typeof e.body === 'string' ? JSON.parse(e.body) : (e.body || {}); } catch (err) { parsed = e.body || {}; }
+
+        // possible keys: electricity_bill, energy_kwh, bill, energy
+        const billRaw = parsed.electricity_bill ?? parsed.bill ?? e.electricity_bill ?? e.bill ?? null;
+        const energyRaw = parsed.energy_kwh ?? parsed.energy ?? e.energy_kwh ?? e.energy ?? null;
+
+        const bill = billRaw !== null && billRaw !== undefined ? Number(billRaw) : null;
+        const energy = energyRaw !== null && energyRaw !== undefined ? Number(energyRaw) : null;
+
+        return Object.assign({}, e, {
+          textColor: '#000',
+          extendedProps: Object.assign({}, e.extendedProps || {}, {
+            bill,
+            energy,
+            _rawBody: parsed,
+            // ordering: put bill-containing events before plain-energy events
+            _order: (bill !== null && !Number.isNaN(bill)) ? 0 : 1
+          })
+        });
+      });
 
       return eventCache[key];
     } catch (err) {
@@ -878,6 +897,25 @@ initializeChart();
       locale: "en",
       height: 600,
       headerToolbar: { left: "prev", center: "title", right: "next" },
+
+      // Custom content for events: always show bill on top and unit below
+      eventOrder: 'extendedProps._order',
+      eventContent: function(arg) {
+        try {
+          const props = arg.event.extendedProps || {};
+          const bill = (props.bill !== null && props.bill !== undefined) ? Number(props.bill).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ฿' : '';
+          const energy = (props.energy !== null && props.energy !== undefined) ? Number(props.energy).toFixed(2) + ' Unit' : '';
+
+          // Title may still be used for the event header; we display bill first then energy
+          const titleHtml = arg.event.title ? `<div style="font-size:11px; font-weight:700; color:#2c1810;">${arg.event.title}</div>` : '';
+          const billHtml = bill ? `<div style="font-size:12px; font-weight:800; color:#5a2b00; margin-top:4px;">${bill}</div>` : '';
+          const energyHtml = energy ? `<div style="font-size:11px; color:#333;">${energy}</div>` : '';
+
+          return { html: `${titleHtml}${billHtml}${energyHtml}` };
+        } catch (e) {
+          return { html: arg.event.title || '' };
+        }
+      },
 
       events: async function(fetchInfo, successCallback) {
         const year = fetchInfo.start.getFullYear();
@@ -1324,20 +1362,24 @@ function renderNotifications() {
         </div>`;
     }
 
-    // Daily energy report style
+    // Daily energy report style — Bill on top, Unit below (locked order)
     if (parsed.energy_kwh !== undefined || parsed.electricity_bill !== undefined) {
       const e = parsed.energy_kwh ? Number(parsed.energy_kwh).toFixed(2) : '0.00';
       const bill = parsed.electricity_bill ? Number(parsed.electricity_bill).toFixed(2) : '0.00';
       const date = parsed.date || '-';
       return `
         <div style="margin-top:8px;">
-          <div style="font-size:12px; color:#666; margin-bottom:6px;">Yesterday (${date}): <strong>${e} Unit</strong> = <strong>${bill} THB</strong></div>
+          <div style="font-size:12px; color:#666; margin-bottom:6px;">Yesterday (${date})</div>
           <div style="background:#dff0d8; padding:12px; border-radius:8px; border:1px solid #c3e6cb; color:#155724; font-size:13px;">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <div><div style="font-size:12px; color:#155724;">Date:</div><div style="font-weight:700">${date}</div></div>
-              <div><div style="font-size:12px; color:#155724;">Energy:</div><div style="font-weight:700">${e} Unit</div></div>
+            <div style="display:block;">
+              <div style="font-size:12px; color:#155724;">Total Bill</div>
+              <div style="font-weight:800; font-size:18px; margin-bottom:8px;">${bill} THB</div>
             </div>
-            <div style="margin-top:8px; border-top:1px solid rgba(0,0,0,0.05); padding-top:8px;">Total Bill: <strong style="font-size:16px">${bill} THB</strong></div>
+            <div style="display:block;">
+              <div style="font-size:12px; color:#155724;">Energy</div>
+              <div style="font-weight:700; font-size:16px;">${e} Unit</div>
+            </div>
+            <div style="margin-top:8px; border-top:1px solid rgba(0,0,0,0.05); padding-top:8px; font-size:12px; color:#666;">Date: <strong style="color:#155724">${date}</strong></div>
           </div>
         </div>`;
     }
