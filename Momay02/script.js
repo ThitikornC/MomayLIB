@@ -871,12 +871,17 @@ initializeChart();
   async function fetchEvents(year, month) {
     const key = `${year}-${String(month).padStart(2, "0")}`;
 
+    // Debug: ensure month param formatting and log
+    const monthParam = String(month).padStart(2, '0');
+
     if (eventCache[key]) return eventCache[key];
 
     try {
-      const url = `${API_BASE}/calendar?year=${year}&month=${month}`;
+      const url = `${API_BASE}/calendar?year=${year}&month=${monthParam}`;
+      console.log('[fetchEvents] requesting', url);
       const res = await fetch(url);
       const data = await res.json();
+      console.log('[fetchEvents] raw data:', data);
 
       // Normalize events: parse body (if present) to extract bill and energy values
       eventCache[key] = (data || []).map(e => {
@@ -890,7 +895,27 @@ initializeChart();
         const bill = billRaw !== null && billRaw !== undefined ? Number(billRaw) : null;
         const energy = energyRaw !== null && energyRaw !== undefined ? Number(energyRaw) : null;
 
-        return Object.assign({}, e, {
+        // Ensure the event has a `start` property FullCalendar can use.
+        // Common API fields we check: start, date, datetime, timestamp (ISO or epoch), day
+        let startVal = e.start || e.date || e.datetime || e.timestamp || e.day || parsed.date || parsed.datetime || parsed.timestamp;
+        if (startVal !== undefined && startVal !== null) {
+          try {
+            // If numeric (epoch seconds or ms), convert to ISO
+            if (typeof startVal === 'number') {
+              // assume milliseconds if large
+              startVal = new Date(startVal).toISOString();
+            } else if (/^\d{10}$/.test(String(startVal))) {
+              // 10-digit epoch -> seconds
+              startVal = new Date(Number(startVal) * 1000).toISOString();
+            } else {
+              // try constructing Date and toISOString if possible
+              const tmp = new Date(startVal);
+              if (!isNaN(tmp.getTime())) startVal = tmp.toISOString();
+            }
+          } catch (e) { /* ignore conversion errors */ }
+        }
+
+        const out = Object.assign({}, e, {
           textColor: '#000',
           extendedProps: Object.assign({}, e.extendedProps || {}, {
             bill,
@@ -900,8 +925,17 @@ initializeChart();
             _order: (bill !== null && !Number.isNaN(bill)) ? 0 : 1
           })
         });
+
+        if (startVal) {
+          out.start = startVal;
+        } else {
+          console.warn('[fetchEvents] event missing start/date/timestamp:', e);
+        }
+
+        return out;
       });
 
+      console.log('[fetchEvents] normalized events:', eventCache[key]);
       return eventCache[key];
     } catch (err) {
       console.error("Error loading events:", err);

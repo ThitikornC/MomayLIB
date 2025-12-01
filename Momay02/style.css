@@ -366,6 +366,11 @@ body::after {
   display: block;
 }
 
+/* Move version label slightly down */
+.Bottom_info .Version {
+  margin-top: 12px;
+}
+
 /* ================= Navbar ================= */
 .Navbar {
   width: 100%;
