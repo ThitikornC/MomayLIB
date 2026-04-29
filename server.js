@@ -17,6 +17,7 @@ const RELAY_KEY = process.env.RELAY_KEY || 'changeme';
 
 // Control server URL (for Sonoff toggle proxy)
 const CONTROL_URL = process.env.CONTROL_URL || 'https://controlbuu-production.up.railway.app';
+const AC_COMMAND_PATH = process.env.AC_COMMAND_PATH || '/ac-command';
 let relaySocket = null;
 const viewerClients = new Set();
 let latestFrame = null;  // เก็บ frame ล่าสุดให้ viewer ใหม่เห็นทันที
@@ -51,6 +52,8 @@ function getContentType(filePath) {
     case '.jpeg': return 'image/jpeg';
     case '.svg': return 'image/svg+xml';
     case '.ico': return 'image/x-icon';
+    case '.glb': return 'model/gltf-binary';
+    case '.gltf': return 'model/gltf+json';
     default: return 'application/octet-stream';
   }
 }
@@ -340,6 +343,46 @@ async function handleAPI(req, res) {
     return true;
   }
 
+  // POST /api/ac-command — proxy AC settings to Control server
+  if (url === '/api/ac-command' && method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      if (!body || !body.room) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, error: 'Missing room' }));
+        return true;
+      }
+
+      const payload = JSON.stringify(body);
+      const controlUrl = new URL(AC_COMMAND_PATH, CONTROL_URL);
+      const proto = controlUrl.protocol === 'https:' ? require('https') : require('http');
+
+      const proxyRes = await new Promise((resolve, reject) => {
+        const proxyReq = proto.request(controlUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+          timeout: 6000
+        }, (pRes) => {
+          let data = '';
+          pRes.on('data', c => data += c);
+          pRes.on('end', () => resolve({ status: pRes.statusCode, body: data }));
+        });
+        proxyReq.on('error', reject);
+        proxyReq.on('timeout', () => { proxyReq.destroy(); reject(new Error('Timeout')); });
+        proxyReq.write(payload);
+        proxyReq.end();
+      });
+
+      res.statusCode = proxyRes.status;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(proxyRes.body || JSON.stringify({ success: proxyRes.status >= 200 && proxyRes.status < 300 }));
+    } catch (error) {
+      res.statusCode = 502;
+      res.end(JSON.stringify({ success: false, error: 'AC control server unreachable: ' + error.message }));
+    }
+    return true;
+  }
+
   // POST /api/verify - Verify QR code for room access
   if (url === '/api/verify' && method === 'POST') {
     try {
@@ -505,6 +548,68 @@ async function handleAPI(req, res) {
       
       res.statusCode = 200;
       res.end(JSON.stringify({ success: true, message: 'Booking deleted' }));
+    } catch (error) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ success: false, error: error.message }));
+    }
+    return true;
+  }
+
+  // GET /api/announcements - List all active announcements
+  if (url === '/api/announcements' && method === 'GET') {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const items = await db.collection('announcements')
+        .find({ $or: [{ expiry: { $gte: today } }, { expiry: '' }, { expiry: null }] })
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.statusCode = 200;
+      res.end(JSON.stringify({ success: true, data: items }));
+    } catch (error) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ success: false, error: error.message }));
+    }
+    return true;
+  }
+
+  // POST /api/announcements - Create announcement
+  if (url === '/api/announcements' && method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      if (!body.title || typeof body.title !== 'string' || body.title.trim().length === 0) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, error: 'title is required' }));
+        return true;
+      }
+      const doc = {
+        title: body.title.trim().slice(0, 100),
+        body: (body.body || '').trim().slice(0, 500),
+        expiry: body.expiry || '',
+        priority: ['info', 'warning', 'urgent'].includes(body.priority) ? body.priority : 'info',
+        createdAt: new Date().toISOString()
+      };
+      await db.collection('announcements').insertOne(doc);
+      res.statusCode = 201;
+      res.end(JSON.stringify({ success: true, data: doc }));
+    } catch (error) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ success: false, error: error.message }));
+    }
+    return true;
+  }
+
+  // DELETE /api/announcements/:id - Delete announcement
+  if (url.startsWith('/api/announcements/') && method === 'DELETE') {
+    try {
+      const id = url.split('/').pop();
+      const result = await db.collection('announcements').deleteOne({ _id: new ObjectId(id) });
+      if (result.deletedCount === 0) {
+        res.statusCode = 404;
+        res.end(JSON.stringify({ success: false, error: 'Not found' }));
+        return true;
+      }
+      res.statusCode = 200;
+      res.end(JSON.stringify({ success: true, message: 'Deleted' }));
     } catch (error) {
       res.statusCode = 500;
       res.end(JSON.stringify({ success: false, error: error.message }));

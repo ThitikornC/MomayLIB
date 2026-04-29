@@ -1,10 +1,10 @@
 // ================= Cache / Offline =================
-const CACHE_NAME = 'momay-cache-v2.17.0';
+const CACHE_NAME = 'momay-cache-v2.19';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/style.css?v=2.17.0',
-  '/script.js?v=2.17.0',
+  '/style.css?v=2.19',
+  '/script.js?v=2.19',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
@@ -50,6 +50,9 @@ self.addEventListener('fetch', event => {
 
   if (event.request.method !== 'GET' || !['http:', 'https:'].includes(requestUrl.protocol)) return;
 
+  // Skip cross-origin requests — let the browser handle them directly
+  if (requestUrl.origin !== self.location.origin) return;
+
   // ALL /api/ paths → network-only (never cache)
   if (requestUrl.pathname.startsWith('/api/')) {
     event.respondWith(
@@ -63,10 +66,8 @@ self.addEventListener('fetch', event => {
     // Network-first สำหรับ API
     event.respondWith(
       fetch(event.request)
-        .then(resp => resp.ok ? resp : caches.match(event.request))
-        .catch(() => caches.match(event.request) ||
-          new Response(JSON.stringify({ error: 'offline' }), { headers: { 'Content-Type': 'application/json' } })
-        )
+        .then(resp => resp.ok ? resp : caches.match(event.request).then(c => c || new Response(JSON.stringify({ error: 'offline' }), { headers: { 'Content-Type': 'application/json' } })))
+        .catch(() => caches.match(event.request).then(c => c || new Response(JSON.stringify({ error: 'offline' }), { headers: { 'Content-Type': 'application/json' } })))
     );
     return;
   }
